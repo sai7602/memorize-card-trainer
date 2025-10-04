@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Генератор квадратів (койот стиль)</title>
+  <style>
+    :root{
+      --bg:#d0b89f;
+      --card:#c2a98c;
+      --accent:#2b241c;
+      --border:#3c3326;
+      --btn:#3c3326;
+      --btn-text:#fff;
+    }
+    body{font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--accent);display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}
+    .app{width:600px;max-width:100%;background:var(--card);border-radius:12px;padding:20px;box-shadow:0 6px 22px rgba(0,0,0,0.2)}
+    h1{margin:0 0 12px;font-size:20px;text-align:center}
+    .grid{display:grid;gap:6px;background:transparent;padding:10px;justify-content:center}
+    .cell{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border:2px solid var(--border);font-weight:700;font-size:28px;background:#e3d2b3;color:var(--accent);border-radius:6px;min-width:60px}
+    .controls{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:8px 12px;border-radius:8px;border:0;background:var(--btn);color:var(--btn-text);cursor:pointer;font-weight:600}
+    button.secondary{background:#e3d2b3;color:var(--accent);border:1px solid var(--border)}
+    select, input[type=range]{padding:6px;border-radius:8px;border:1px solid var(--border);background:#f5ebd5;color:var(--accent);font-weight:600}
+    footer{margin-top:12px;font-size:13px;color:var(--accent);text-align:center}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Генератор квадратів (койот стиль)</h1>
+    <div class="controls">
+      <label>Розмір:
+        <select id="sizeSelect">
+          <option value="3">3×3</option>
+          <option value="4">4×4</option>
+          <option value="5">5×5</option>
+        </select>
+      </label>
+      <label>Кількість квадратів: <span id="countLabel">1</span>
+        <input type="range" id="countRange" min="1" max="10" value="1" />
+      </label>
+    </div>
+
+    <div id="gridsContainer"></div>
+
+    <div class="controls">
+      <button id="shuffleBtn">🔀 Переставити</button>
+      <button id="regenBtn" class="secondary">♻️ Нові комбінації</button>
+      <button id="downloadBtn" class="secondary">⬇️ Завантажити PNG</button>
+    </div>
+
+    <footer>Генерує від 1 до 10 квадратів у койот стилі, випадкові числа без повторів у кожному.</footer>
+  </div>
+
+  <canvas id="exportCanvas" width="900" height="900" style="display:none"></canvas>
+
+  <script>
+    function shuffleArray(a){
+      for(let i=a.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+      }
+      return a;
+    }
+
+    const gridsContainer=document.getElementById('gridsContainer');
+    const sizeSelect=document.getElementById('sizeSelect');
+    const countRange=document.getElementById('countRange');
+    const countLabel=document.getElementById('countLabel');
+
+    let gridSize=3;
+    let gridCount=1;
+    let grids=[];
+
+    function generateNumbers(n){
+      const total=n*n;
+      const arr=[];
+      for(let i=1;i<=total;i++)arr.push(i);
+      return shuffleArray(arr);
+    }
+
+    function makeGrid(nums,n){
+      const grid=document.createElement('div');
+      grid.className='grid';
+      grid.style.gridTemplateColumns=`repeat(${n},1fr)`;
+      for(let i=0;i<nums.length;i++){
+        const div=document.createElement('div');
+        div.className='cell';
+        div.textContent=nums[i];
+        grid.appendChild(div);
+      }
+      return grid;
+    }
+
+    function generateAll(){
+      gridsContainer.innerHTML='';
+      grids=[];
+      for(let i=0;i<gridCount;i++){
+        const nums=generateNumbers(gridSize);
+        grids.push(nums);
+        const grid=makeGrid(nums,gridSize);
+        gridsContainer.appendChild(grid);
+      }
+    }
+
+    document.getElementById('shuffleBtn').addEventListener('click',()=>{
+      grids=grids.map(g=>shuffleArray(g.slice()));
+      gridsContainer.innerHTML='';
+      for(const nums of grids){
+        const grid=makeGrid(nums,gridSize);
+        gridsContainer.appendChild(grid);
+      }
+    });
+
+    document.getElementById('regenBtn').addEventListener('click',()=>generateAll());
+
+    sizeSelect.addEventListener('change',()=>{
+      gridSize=parseInt(sizeSelect.value);
+      generateAll();
+    });
+
+    countRange.addEventListener('input',()=>{
+      gridCount=parseInt(countRange.value);
+      countLabel.textContent=gridCount;
+      generateAll();
+    });
+
+    function downloadPNG(){
+      const canvas=document.getElementById('exportCanvas');
+      const ctx=canvas.getContext('2d');
+      const size=Math.min(canvas.width,canvas.height);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#e3d2b3';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      const margin=40;
+      const gridPix=size-margin*2;
+      const cell=gridPix/gridSize;
+
+      ctx.lineWidth=6;
+      ctx.strokeStyle='#3c3326';
+      ctx.font=Math.floor(cell*0.45)+'px Arial';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillStyle='#2b241c';
+
+      grids.forEach((numbers,index)=>{
+        for(let r=0;r<gridSize;r++){
+          for(let c=0;c<gridSize;c++){
+            const x=margin+c*cell;
+            const y=margin+r*cell;
+            ctx.strokeRect(x,y,cell,cell);
+            const val=numbers[r*gridSize+c];
+            ctx.fillText(String(val),x+cell/2,y+cell/2);
+          }
+        }
+        const dataUrl=canvas.toDataURL('image/png');
+        const a=document.createElement('a');
+        a.href=dataUrl;
+        a.download=`square_${gridSize}x${gridSize}_${index+1}.png`;
+        a.click();
+      });
+    }
+
+    document.getElementById('downloadBtn').addEventListener('click',downloadPNG);
+
+    generateAll();
+  </script>
+</body>
+</html>
